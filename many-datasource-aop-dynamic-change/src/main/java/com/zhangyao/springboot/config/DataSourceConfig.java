@@ -1,6 +1,7 @@
 package com.zhangyao.springboot.config;
 
 import com.alibaba.druid.pool.DruidDataSource;
+import com.zaxxer.hikari.HikariDataSource;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.mybatis.spring.SqlSessionFactoryBean;
 import org.mybatis.spring.SqlSessionTemplate;
@@ -13,8 +14,11 @@ import org.springframework.context.annotation.Primary;
 import tk.mybatis.spring.annotation.MapperScan;
 
 import javax.sql.DataSource;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+
+import static com.zhangyao.springboot.config.MyDynamicDataSource.DataSourceCache;
 
 
 /**
@@ -26,73 +30,59 @@ import java.util.Map;
 
 @Configuration
 @MapperScan(basePackages = "com.zhangyao.springboot.mapper",sqlSessionFactoryRef = "sqlSessionFactory")
-public class DataSource1Config {
+public class DataSourceConfig {
 
     /**
      * 主数据源配置
      * @return
      */
-    @Bean(name = "test1DataSource")
+    @Bean(name = "primaryDataSource")
     @Primary
     @ConfigurationProperties(prefix = "spring.datasource.test1")
-    public DruidDataSource getDataSource1(){
-        DruidDataSource datasourc =  DataSourceBuilder.create().type(DruidDataSource.class).build();
-        return datasourc;
+    public DataSource getDataSource1(){
+        HikariDataSource datasource =  DataSourceBuilder.create().type(HikariDataSource.class).build();
+        if(datasource==null){
+            try {
+                datasource = new MyDynamicDataSource().initDataSource("default");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        //设置默认的数据源
+        DataSourceCache.put("default", datasource);
+        ThreadLocalDataSource.setLocalSource("default");
+        return datasource;
     }
-
-    /**
-     * 第二个数据源配置
-     * @return
-     */
-    @Bean(name = "test2DataSource")
-    @ConfigurationProperties(prefix = "spring.datasource.test2")
-    public DruidDataSource getDataSource2(){
-        DruidDataSource datasourc =  DataSourceBuilder.create().type(DruidDataSource.class).build();
-        return datasourc;
-    }
-
-
     /**
      * 动态装配所有的数据源
-     * @param dataSource1
-     * @param dataSource2
+     * @param primaryDataSource
      * @return
      */
     @Bean("dynamicDataSource")
-    public DynamicChangeDataSourceConfig setDynamicDataSource(@Qualifier("test1DataSource") DataSource dataSource1,
-                                                              @Qualifier("test2DataSource") DataSource dataSource2){
+    public DynamicChangeDataSourceConfig setDynamicDataSource(@Qualifier("primaryDataSource") DataSource primaryDataSource){
         //定义所有的数据源
         Map<Object,Object> allDataSource = new HashMap<Object, Object>();
         //把配置的多数据源放入map
-        allDataSource.put(DataSourceType.DataBaseType.TEST1, dataSource1);
-        allDataSource.put(DataSourceType.DataBaseType.TEST2, dataSource2);
+        allDataSource.put("default", primaryDataSource);
 
         //定义实现了AbstractDataSource的自定义aop切换类
         DynamicChangeDataSourceConfig dynamicChangeDataSourceConfig = new DynamicChangeDataSourceConfig();
         //把上面的所有的数据源的map放进去
         dynamicChangeDataSourceConfig.setTargetDataSources(allDataSource);
         //设置默认的数据源
-        dynamicChangeDataSourceConfig.setDefaultTargetDataSource(dataSource1);
+        dynamicChangeDataSourceConfig.setDefaultTargetDataSource(primaryDataSource);
 
         return dynamicChangeDataSourceConfig;
     }
 
-
-
     @Bean("sqlSessionFactory")
     @Primary
-    public SqlSessionFactory getSqlSessionFactory(@Qualifier("dynamicDataSource") DynamicChangeDataSourceConfig dynamicChangeDataSourceConfig) throws Exception {
+    public SqlSessionFactory getSqlSessionFactory(@Qualifier("dynamicDataSource") DataSource dynamicDataSource) throws Exception {
         SqlSessionFactoryBean sqlSessionFactoryBean = new SqlSessionFactoryBean();
-        sqlSessionFactoryBean.setDataSource(dynamicChangeDataSourceConfig);
-//        sqlSessionFactoryBean.setMapperLocations();
-
+        sqlSessionFactoryBean.setDataSource(dynamicDataSource);
         return sqlSessionFactoryBean.getObject();
     }
 
 
-    @Bean("sqlSessionTemplate")
-    @Primary
-    public SqlSessionTemplate getSqlSessionTemplate1(@Qualifier("sqlSessionFactory") SqlSessionFactory sqlSessionFactory){
-        return new SqlSessionTemplate(sqlSessionFactory);
-    }
+
 }

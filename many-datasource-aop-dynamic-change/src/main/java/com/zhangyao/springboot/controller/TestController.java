@@ -1,10 +1,16 @@
 package com.zhangyao.springboot.controller;
 
-import com.zhangyao.springboot.service.ArticleService;
-import com.zhangyao.springboot.service.ArticleService2;
+import com.zhangyao.springboot.annotation.DataSourceServiceAop;
+import com.zhangyao.springboot.service.TestService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 
 /**
  * @author: zhangyao
@@ -15,16 +21,20 @@ import org.springframework.web.bind.annotation.RestController;
 public class TestController {
 
     @Autowired
-    ArticleService articleService;
-    @Autowired
-    ArticleService2 articleService2;
+    TestService testService;
 
-    @GetMapping("/query")
-    public String query(){
-        return articleService.queryAll();
+    @GetMapping("/test")
+    @DataSourceServiceAop
+    public String test(String sql){
+        return testService.test(sql);
     }
-    @GetMapping("/query2")
-    public String query2(){
-        return articleService2.queryAll();
+
+
+    @PostMapping("/test")
+    public String test1(@RequestBody List list){
+        list.forEach(a -> {
+            System.out.println(a);
+        });
+        return "1";
     }
 }

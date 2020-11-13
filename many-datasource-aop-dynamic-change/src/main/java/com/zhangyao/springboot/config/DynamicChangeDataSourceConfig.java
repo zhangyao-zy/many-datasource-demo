@@ -12,7 +12,7 @@ public class DynamicChangeDataSourceConfig extends AbstractRoutingDataSource {
 
     @Override
     protected Object determineCurrentLookupKey() {
-        DataSourceType.DataBaseType dataBaseType = DataSourceType.getDataBaseType();
-        return dataBaseType;
+        return ThreadLocalDataSource.getLocalSource();
     }
+
 }
