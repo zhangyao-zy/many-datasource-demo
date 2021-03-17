@@ -36,10 +36,12 @@ public class MyDynamicDataSource extends HikariDataSource {
     public Connection getConnection() throws SQLException {
         String localSourceKey = ThreadLocalDataSource.getLocalSource();
         HikariDataSource dataSource = (HikariDataSource) DataSourceCache.get(localSourceKey);
-        try {
-            dataSource = initDataSource(localSourceKey);
-        } catch (IOException e) {
-            e.printStackTrace();
+        if(dataSource==null){
+            try {
+                dataSource = initDataSource(localSourceKey);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
         return dataSource.getConnection();
     }
